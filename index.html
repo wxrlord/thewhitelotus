@@ -200,47 +200,41 @@
   #skip:hover{ color:var(--ivory); border-color:var(--gold); }
   #skip:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
 
+  #introsnd{
+    position:absolute;
+    left:24px; bottom:24px;
+    display:flex; align-items:center; gap:10px;
+    font-family:'Cinzel', serif;
+    font-size:13px;
+    letter-spacing:.24em;
+    color:var(--ivory);
+    background:rgba(12,14,10,.5);
+    border:1px solid var(--gold);
+    padding:10px 20px 10px 16px;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .6s ease .6s, background .25s ease;
+  }
+  #intro.playing #introsnd{ opacity:1; }
+  #introsnd svg{ width:17px; height:17px; flex:none; }
+  #introsnd svg path, #introsnd svg line{
+    fill:none; stroke:var(--gold); stroke-width:1.6; stroke-linecap:round;
+  }
+  #introsnd svg .w2{ opacity:.35; }
+  #introsnd:hover{ background:rgba(198,160,83,.16); }
+  #introsnd[aria-pressed="true"] svg .x{ opacity:0; }
+  #introsnd[aria-pressed="true"] svg .w2{ opacity:.9; }
+  #introsnd[aria-pressed="true"]{ border-color:var(--hairline); color:var(--ivory-d); }
+  #introsnd:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+
   body.intro-open{ overflow:hidden; }
 
-  /* ─────────── water + birds ─────────── */
-
-  #fx{
-    position:fixed;
-    inset:0;
-    z-index:4;
-    pointer-events:none;
-  }
-
-  #snd{
-    position:fixed;
-    right:20px; bottom:20px;
-    z-index:5;
-    width:42px; height:42px;
-    display:flex; align-items:center; justify-content:center;
-    padding:0;
-    background:rgba(12,14,10,.55);
-    border:1px solid var(--hairline);
-    border-radius:50%;
-    cursor:pointer;
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    transition:border-color .25s ease, background .25s ease;
-  }
-  #snd svg{ width:20px; height:20px; overflow:visible; }
-  #snd svg path, #snd svg line{
-    fill:none; stroke:var(--gold); stroke-width:1.5;
-    stroke-linecap:round; opacity:.8;
-  }
-  #snd svg .w2{ opacity:.4; }
-  #snd svg .x{ transition:opacity .25s ease; }
-  #snd[aria-pressed="true"]{ border-color:var(--gold); background:rgba(198,160,83,.12); }
-  #snd[aria-pressed="true"] svg .x{ opacity:0; }
-  #snd[aria-pressed="true"] svg .w2{ opacity:.75; }
-  #snd:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
-
   @media (max-width:520px){
-    #snd{ right:14px; bottom:14px; width:38px; height:38px; }
+    #introsnd{ left:14px; bottom:14px; padding:9px 15px 9px 12px; font-size:12px; }
+    #skip{ right:14px; bottom:14px; padding:9px 16px; font-size:12px; }
   }
+
+  /* ─────────── water + birds ─────────── */
 
   /* ─────────── wires ─────────── */
 
@@ -349,6 +343,8 @@
     .cta{ transition:none; }
   }
 
+  /* ─────────── water ─────────── */
+
   @media (max-width:520px){
     body{ font-size:19px; }
     .inner{ padding:56px 22px 68px; }
@@ -362,19 +358,18 @@
 <div id="intro" hidden>
   <video id="introvid" playsinline muted preload="auto" disablepictureinpicture></video>
   <div id="veil"></div>
+  <button id="introsnd" type="button" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path class="w1" d="M4 12c1.8-2.6 3.6-2.6 5.4 0s3.6 2.6 5.4 0 3.6-2.6 5.4 0"/>
+      <path class="w2" d="M4 17c1.8-2.6 3.6-2.6 5.4 0s3.6 2.6 5.4 0 3.6-2.6 5.4 0"/>
+      <line class="x" x1="5" y1="5.5" x2="19" y2="19.5"/>
+    </svg>
+    <span>Sound</span>
+  </button>
   <button id="skip" type="button">Skip</button>
 </div>
 
 <canvas id="water" aria-hidden="true"></canvas>
-<canvas id="fx" aria-hidden="true"></canvas>
-
-<button id="snd" type="button" aria-label="Toggle ambient sound" aria-pressed="false">
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path class="w1" d="M3 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>
-    <path class="w2" d="M3 17c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>
-    <line class="x" x1="5" y1="5.5" x2="19" y2="19.5"/>
-  </svg>
-</button>
 
 <section class="hero">
   <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
@@ -475,24 +470,53 @@
   window.__introActive = true;
   window.__introVid = vid;
 
+  var snd = document.getElementById("introsnd");
+
   vid.src = "intro.mp4";
-  vid.muted = true;                 /* required, or autoplay is refused */
-  vid.setAttribute("muted", "");
 
   vid.addEventListener("playing", function () { el.classList.add("playing"); });
   vid.addEventListener("ended", dismiss);
   vid.addEventListener("error", dismiss);
 
-  skip.addEventListener("click", dismiss);
+  function setBtn() {
+    snd.setAttribute("aria-pressed", vid.muted ? "false" : "true");
+    snd.lastElementChild.textContent = vid.muted ? "Sound" : "Mute";
+  }
+
+  snd.addEventListener("click", function (e) {
+    e.stopPropagation();
+    vid.muted = !vid.muted;
+    if (!vid.muted) { vid.volume = 0.85; vid.play(); }
+    setBtn();
+  });
+
+  skip.addEventListener("click", function (e) {
+    e.stopPropagation();
+    dismiss();
+  });
+
   setTimeout(function () {
     el.addEventListener("click", function (e) {
-      if (e.target !== skip) dismiss();
+      if (!e.target.closest("#skip") && !e.target.closest("#introsnd")) dismiss();
     });
-  }, 1200);
+  }, 1400);
 
-  /* if the browser refuses to autoplay, do not trap the visitor */
+  /* Browsers only allow sound before a gesture if this visitor has built up
+     enough media-engagement history on the site — so try it, and quietly
+     fall back to muted playback when it is refused. */
+  vid.muted = false;
+  vid.volume = 0.85;
   var p = vid.play();
-  if (p && p.catch) p.catch(dismiss);
+  if (p && p.catch) {
+    p.catch(function () {
+      vid.muted = true;
+      vid.setAttribute("muted", "");
+      setBtn();
+      var q = vid.play();
+      if (q && q.catch) q.catch(dismiss);
+    });
+  }
+  setBtn();
 
   /* safety net: never hold the page longer than the film */
   setTimeout(dismiss, 15000);
@@ -500,7 +524,7 @@
 </script>
 
 <script>
-/* ── refracting water, birds, ambient sound ────────────────── */
+/* ── refracting water surface ───────────────────────────────── */
 (function () {
   "use strict";
 
@@ -509,15 +533,30 @@
   window.__water = "starting";
   var hero = document.querySelector(".hero");
 
-  /* ══ 1. water: real UV displacement in WebGL ═══════════════ */
-
   var Water = (function () {
     var cv = document.getElementById("water");
     var gl = null, prog = null, tex = {}, u = {};
-    var RW = 168, RH = 100;
+    var MARGIN = 22;                       /* cells simulated off-screen */
+    var IW = 168, IH = 100;                /* cells actually displayed */
+    var RW = IW + MARGIN * 2, RH = IH + MARGIN * 2;
     var a = new Float32Array(RW * RH);
     var b = new Float32Array(RW * RH);
     var bytes = new Uint8Array(RW * RH);
+
+    /* Absorbing border: energy that reaches the edge is swallowed instead
+       of reflecting, so waves read as leaving the screen. The ramp is
+       smooth — an abrupt change in damping reflects almost as badly as
+       a hard wall. */
+    var damp = new Float32Array(RW * RH);
+    (function () {
+      for (var y = 0; y < RH; y++) {
+        for (var x = 0; x < RW; x++) {
+          var e = Math.min(Math.min(x, RW - 1 - x), Math.min(y, RH - 1 - y));
+          var t = Math.min(1, e / MARGIN);
+          damp[y * RW + x] = 0.978 * (0.80 + 0.20 * (t * t * (3 - 2 * t)));
+        }
+      }
+    })();
     var ok = false, iw = 1, ih = 1;
 
     var VS =
@@ -527,13 +566,14 @@
     var FS =
       "precision mediump float;varying vec2 vUv;" +
       "uniform sampler2D uImg,uRip;" +
-      "uniform vec2 uTexel,uScale,uOffset;" +
+      "uniform vec2 uTexel,uScale,uOffset,uRipScale,uRipOffset;" +
       "uniform float uStr,uVH,uScroll,uHeroH;" +
       "void main(){" +
-      "float l=texture2D(uRip,vUv-vec2(uTexel.x,0.)).r;" +
-      "float r=texture2D(uRip,vUv+vec2(uTexel.x,0.)).r;" +
-      "float d=texture2D(uRip,vUv-vec2(0.,uTexel.y)).r;" +
-      "float t=texture2D(uRip,vUv+vec2(0.,uTexel.y)).r;" +
+      "vec2 ruv=vUv*uRipScale+uRipOffset;" +
+      "float l=texture2D(uRip,ruv-vec2(uTexel.x,0.)).r;" +
+      "float r=texture2D(uRip,ruv+vec2(uTexel.x,0.)).r;" +
+      "float d=texture2D(uRip,ruv-vec2(0.,uTexel.y)).r;" +
+      "float t=texture2D(uRip,ruv+vec2(0.,uTexel.y)).r;" +
       "vec2 g=vec2(r-l,t-d);" +
       /* where this pixel sits on the page, so the photo scrolls away */
       "float pageY=(1.0-vUv.y)*uVH+uScroll;" +
@@ -615,6 +655,8 @@
       u.scale = gl.getUniformLocation(prog, "uScale");
       u.offset = gl.getUniformLocation(prog, "uOffset");
       u.str = gl.getUniformLocation(prog, "uStr");
+      u.ripScale = gl.getUniformLocation(prog, "uRipScale");
+      u.ripOffset = gl.getUniformLocation(prog, "uRipOffset");
       u.vh = gl.getUniformLocation(prog, "uVH");
       u.scroll = gl.getUniformLocation(prog, "uScroll");
       u.heroH = gl.getUniformLocation(prog, "uHeroH");
@@ -622,6 +664,8 @@
       gl.uniform1i(u.img, 0);
       gl.uniform1i(u.rip, 1);
       gl.uniform2f(u.texel, 1 / RW, 1 / RH);
+      gl.uniform2f(u.ripScale, IW / RW, IH / RH);
+      gl.uniform2f(u.ripOffset, MARGIN / RW, MARGIN / RH);
       gl.uniform1f(u.str, 0.55);
 
       ok = true;
@@ -653,8 +697,8 @@
 
     function drop(cx, cy, force, rad) {
       if (!ok) return;
-      var gx = Math.round((cx / window.innerWidth) * RW);
-      var gy = Math.round((1 - cy / window.innerHeight) * RH);
+      var gx = Math.round(MARGIN + (cx / window.innerWidth) * IW);
+      var gy = Math.round(MARGIN + (1 - cy / window.innerHeight) * IH);
       rad = rad || 2;
       for (var y = -rad; y <= rad; y++) {
         for (var x = -rad; x <= rad; x++) {
@@ -674,7 +718,7 @@
         var row = y * RW;
         for (x = 1; x < RW - 1; x++) {
           i = row + x;
-          b[i] = ((a[i - 1] + a[i + 1] + a[i - RW] + a[i + RW]) * 0.5 - b[i]) * 0.978;
+          b[i] = ((a[i - 1] + a[i + 1] + a[i - RW] + a[i + RW]) * 0.5 - b[i]) * damp[i];
         }
       }
       var t = a; a = b; b = t;
@@ -726,77 +770,11 @@
     return { drop: drop, step: step, live: function () { return ok; } };
   })();
 
-  /* ══ 2. birds ══════════════════════════════════════════════ */
-
-  var c = document.getElementById("fx");
-  var ctx = c.getContext("2d");
-  var W = 0, H = 0, heroH = 0;
-
-  function size2d() {
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth; H = window.innerHeight;
-    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
-    c.style.width = W + "px"; c.style.height = H + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    heroH = hero ? hero.getBoundingClientRect().height : H;
-  }
-  window.addEventListener("resize", size2d);
-  size2d();
-
-  function Bird(init) { this.reset(init); }
-  Bird.prototype.reset = function (init) {
-    this.dir = Math.random() < 0.5 ? 1 : -1;
-    this.x = init ? Math.random() * W : (this.dir > 0 ? -70 : W + 70);
-    this.y = 26 + Math.random() * Math.max(80, heroH * 0.42);
-    this.sp = 0.16 + Math.random() * 0.34;
-    this.sc = 4.5 + Math.random() * 8;
-    this.ph = Math.random() * 6.2832;
-    this.fr = 0.030 + Math.random() * 0.034;
-    this.op = 0.16 + Math.random() * 0.24;
-    this.bob = 0.10 + Math.random() * 0.20;
-  };
-
-  var birds = [];
-  for (var i = 0; i < 4; i++) birds.push(new Bird(true));
-
-  function drawBirds(sy) {
-    for (var i = 0; i < birds.length; i++) {
-      var d = birds[i];
-      d.x += d.sp * d.dir;
-      d.ph += d.fr;
-      if ((d.dir > 0 && d.x > W + 80) || (d.dir < 0 && d.x < -80)) { d.reset(false); continue; }
-
-      var y = d.y - sy + Math.sin(d.ph * 0.4) * (d.sc * d.bob);
-      if (y < -40 || y > H + 40) continue;
-      var edge = 1 - Math.max(0, (d.y - heroH * 0.66) / (heroH * 0.34));
-      if (edge <= 0) continue;
-
-      var flap = 0.26 + 0.74 * (0.5 + 0.5 * Math.sin(d.ph));
-      var s = d.sc, lift = s * flap;
-
-      ctx.save();
-      ctx.translate(d.x, y);
-      ctx.scale(d.dir, 1);
-      ctx.strokeStyle = "rgba(233,227,211," + (d.op * edge).toFixed(4) + ")";
-      ctx.lineWidth = 1.1;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-s, 0);
-      ctx.quadraticCurveTo(-s * 0.52, -lift, 0, -s * 0.12);
-      ctx.quadraticCurveTo(s * 0.52, -lift, s, 0);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
   /* ══ 3. loop ═══════════════════════════════════════════════ */
 
   var running = true;
   function frame() {
-    var sy = window.scrollY || window.pageYOffset || 0;
     Water.step();
-    ctx.clearRect(0, 0, W, H);
-    if (!reduce) drawBirds(sy);
     if (running) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -806,7 +784,7 @@
     if (running) requestAnimationFrame(frame);
   });
 
-  /* ══ 4. input ══════════════════════════════════════════════ */
+  /* ── input ── */
 
   var lx = 0, ly = 0, lt = 0;
 
@@ -822,7 +800,6 @@
 
   window.addEventListener("pointerdown", function (e) {
     Water.drop(e.clientX, e.clientY, 0.45, 3);
-    plip(1);
   }, { passive: true });
 
   /* idle rain — a drop lands on its own every so often */
@@ -832,89 +809,8 @@
     var x = Math.random() * window.innerWidth;
     var y = Math.random() * window.innerHeight;
     Water.drop(x, y, 0.26, 2);
-    if (on) plip(0.3);
   }, 3400);
 
-  /* ══ 5. sound ══════════════════════════════════════════════ */
-
-  var actx = null, master = null, on = false;
-
-  function build() {
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return false;
-    actx = new AC();
-    master = actx.createGain();
-    master.gain.value = 0;
-    master.connect(actx.destination);
-
-    var lp = actx.createBiquadFilter();
-    lp.type = "lowpass"; lp.frequency.value = 340; lp.Q.value = 0.6;
-    lp.connect(master);
-
-    [55, 82.5, 110].forEach(function (f, i) {
-      var o = actx.createOscillator();
-      o.type = i === 2 ? "sine" : "triangle";
-      o.frequency.value = f * (1 + (i - 1) * 0.004);
-      var g = actx.createGain();
-      g.gain.value = [0.10, 0.06, 0.045][i];
-      var l = actx.createOscillator();
-      l.frequency.value = 0.05 + i * 0.019;
-      var lg = actx.createGain();
-      lg.gain.value = [0.05, 0.034, 0.028][i];
-      l.connect(lg); lg.connect(g.gain); l.start();
-      o.connect(g); g.connect(lp); o.start();
-    });
-
-    var len = Math.floor(actx.sampleRate * 4);
-    var buf = actx.createBuffer(1, len, actx.sampleRate);
-    var ch = buf.getChannelData(0), last = 0;
-    for (var k = 0; k < len; k++) {
-      var w = Math.random() * 2 - 1;
-      last = (last + 0.022 * w) / 1.022;
-      ch[k] = last * 3.2;
-    }
-    var src = actx.createBufferSource();
-    src.buffer = buf; src.loop = true;
-    var bp = actx.createBiquadFilter();
-    bp.type = "bandpass"; bp.frequency.value = 620; bp.Q.value = 0.7;
-    var ng = actx.createGain(); ng.gain.value = 0.05;
-    src.connect(bp); bp.connect(ng); ng.connect(master); src.start();
-    return true;
-  }
-
-  function plip(s) {
-    if (!on || !actx) return;
-    var t = actx.currentTime;
-    var o = actx.createOscillator(), g = actx.createGain();
-    o.type = "sine";
-    var f0 = 500 + Math.random() * 440;
-    o.frequency.setValueAtTime(f0, t);
-    o.frequency.exponentialRampToValueAtTime(f0 * 0.28, t + 0.17);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.15 * s, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
-    o.connect(g); g.connect(master);
-    o.start(t); o.stop(t + 0.36);
-  }
-
-  var btn = document.getElementById("snd");
-  btn.addEventListener("click", function () {
-    /* during the intro this button controls the film, not the pond */
-    if (window.__introActive && window.__introVid) {
-      var v = window.__introVid;
-      v.muted = !v.muted;
-      btn.setAttribute("aria-pressed", v.muted ? "false" : "true");
-      return;
-    }
-    if (!actx && !build()) { btn.style.display = "none"; return; }
-    if (actx.state === "suspended") actx.resume();
-    on = !on;
-    btn.setAttribute("aria-pressed", on ? "true" : "false");
-    var t = actx.currentTime;
-    master.gain.cancelScheduledValues(t);
-    master.gain.setValueAtTime(master.gain.value, t);
-    master.gain.linearRampToValueAtTime(on ? 0.5 : 0, t + (on ? 1.6 : 0.5));
-  });
 })();
 </script>
 
