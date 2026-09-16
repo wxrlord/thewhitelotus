@@ -76,7 +76,7 @@
 
   #water{
     position:fixed; inset:0;
-    width:100vw; height:100vh;
+    width:100%; height:100%;
     z-index:0;
     opacity:0;
     transition:opacity .8s ease;
@@ -536,19 +536,33 @@
   var Water = (function () {
     var cv = document.getElementById("water");
     var gl = null, prog = null, tex = {}, u = {};
-    var MARGIN = 22;                       /* cells simulated off-screen */
-    var IW = 168, IH = 100;                /* cells actually displayed */
-    var RW = IW + MARGIN * 2, RH = IH + MARGIN * 2;
-    var a = new Float32Array(RW * RH);
-    var b = new Float32Array(RW * RH);
-    var bytes = new Uint8Array(RW * RH);
+    /* The grid is shaped to the viewport. A fixed grid stretched to fit
+       gives non-square cells, which turns circular waves into ovals —
+       very obvious on a phone, where the aspect is furthest from the
+       grid's own. Cell count stays constant so the cost does not move. */
+    var CELLS = 17000;
+    var MARGIN = 18;                       /* cells simulated off-screen */
+    var IW = 0, IH = 0, RW = 0, RH = 0, CELLPX = 1;
+    var a, b, bytes, damp;
 
-    /* Absorbing border: energy that reaches the edge is swallowed instead
-       of reflecting, so waves read as leaving the screen. The ramp is
-       smooth — an abrupt change in damping reflects almost as badly as
-       a hard wall. */
-    var damp = new Float32Array(RW * RH);
-    (function () {
+    function buildGrid(vw, vh) {
+      var asp = vw / Math.max(1, vh);
+      var iw = Math.max(40, Math.round(Math.sqrt(CELLS * asp)));
+      var ih = Math.max(40, Math.round(Math.sqrt(CELLS / asp)));
+      CELLPX = vw / iw;
+      if (iw === IW && ih === IH) return false;
+
+      IW = iw; IH = ih;
+      RW = IW + MARGIN * 2; RH = IH + MARGIN * 2;
+      a = new Float32Array(RW * RH);
+      b = new Float32Array(RW * RH);
+      bytes = new Uint8Array(RW * RH);
+
+      /* Absorbing border: energy reaching the edge is swallowed rather
+         than reflected, so waves read as leaving the screen. The ramp is
+         smooth — an abrupt change in damping reflects almost as badly as
+         a hard wall. */
+      damp = new Float32Array(RW * RH);
       for (var y = 0; y < RH; y++) {
         for (var x = 0; x < RW; x++) {
           var e = Math.min(Math.min(x, RW - 1 - x), Math.min(y, RH - 1 - y));
@@ -556,8 +570,9 @@
           damp[y * RW + x] = 0.978 * (0.80 + 0.20 * (t * t * (3 - 2 * t)));
         }
       }
-    })();
-    var ok = false, iw = 1, ih = 1;
+      return true;
+    }
+    buildGrid(window.innerWidth, window.innerHeight);
 
     var VS =
       "attribute vec2 p;varying vec2 vUv;" +
@@ -681,6 +696,17 @@
       var vw = window.innerWidth, vh = window.innerHeight;
       var hh = hero ? hero.getBoundingClientRect().height : vh;
       var dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+
+      if (buildGrid(vw, vh)) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, tex.rip);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, RW, RH, 0,
+                      gl.LUMINANCE, gl.UNSIGNED_BYTE, null);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform2f(u.texel, 1 / RW, 1 / RH);
+        gl.uniform2f(u.ripScale, IW / RW, IH / RH);
+        gl.uniform2f(u.ripOffset, MARGIN / RW, MARGIN / RH);
+      }
       cv.width = Math.max(2, Math.round(vw * dpr));
       cv.height = Math.max(2, Math.round(vh * dpr));
       gl.viewport(0, 0, cv.width, cv.height);
@@ -695,11 +721,11 @@
       gl.uniform2f(u.offset, ox, oy);
     }
 
-    function drop(cx, cy, force, rad) {
+    function drop(cx, cy, force, radPx) {
       if (!ok) return;
       var gx = Math.round(MARGIN + (cx / window.innerWidth) * IW);
       var gy = Math.round(MARGIN + (1 - cy / window.innerHeight) * IH);
-      rad = rad || 2;
+      var rad = Math.max(2, Math.round((radPx || 24) / CELLPX));
       for (var y = -rad; y <= rad; y++) {
         for (var x = -rad; x <= rad; x++) {
           var px = gx + x, py = gy + y;
@@ -793,13 +819,13 @@
     var dx = e.clientX - lx, dy = e.clientY - ly;
     var d = Math.sqrt(dx * dx + dy * dy);
     if (t - lt > 16 && d > 3) {
-      Water.drop(e.clientX, e.clientY, Math.min(0.26, 0.07 + d * 0.006), 2);
+      Water.drop(e.clientX, e.clientY, Math.min(0.26, 0.07 + d * 0.006), 26);
       lx = e.clientX; ly = e.clientY; lt = t;
     }
   }, { passive: true });
 
   window.addEventListener("pointerdown", function (e) {
-    Water.drop(e.clientX, e.clientY, 0.45, 3);
+    Water.drop(e.clientX, e.clientY, 0.45, 42);
   }, { passive: true });
 
   /* idle rain — a drop lands on its own every so often */
@@ -808,7 +834,7 @@
     if (Math.random() > 0.55) return;
     var x = Math.random() * window.innerWidth;
     var y = Math.random() * window.innerHeight;
-    Water.drop(x, y, 0.26, 2);
+    Water.drop(x, y, 0.26, 30);
   }, 3400);
 
 })();
