@@ -688,7 +688,7 @@
       gl.uniform2f(u.texel, 1 / RW, 1 / RH);
       gl.uniform2f(u.ripScale, IW / RW, IH / RH);
       gl.uniform2f(u.ripOffset, MARGIN / RW, MARGIN / RH);
-      gl.uniform1f(u.str, 0.44);
+      gl.uniform1f(u.str, 0.38);
 
       ok = true;
       resize();
@@ -736,7 +736,7 @@
       /* A phone has far smaller cells, so the same pixel radius covers many
          more of them and injects far more energy. Normalise against a
          reference radius so a tap feels identical on any screen. */
-      var norm = 22.0 / (rad * rad);
+      var norm = 13.0 / (rad * rad);
       force *= norm > 1 ? 1 : norm;
       for (var y = -rad; y <= rad; y++) {
         for (var x = -rad; x <= rad; x++) {
@@ -830,14 +830,17 @@
     var t = performance.now();
     var dx = e.clientX - lx, dy = e.clientY - ly;
     var d = Math.sqrt(dx * dx + dy * dy);
-    if (t - lt > 16 && d > 3) {
-      Water.drop(e.clientX, e.clientY, Math.min(0.26, 0.07 + d * 0.006), 26);
+    /* A mouse fires this constantly, so a low threshold makes the whole
+       surface churn wherever the cursor has been. Requiring real travel
+       keeps the trail a wake rather than a permanent disturbance. */
+    if (t - lt > 30 && d > 11) {
+      Water.drop(e.clientX, e.clientY, Math.min(0.13, 0.035 + d * 0.0035), 30);
       lx = e.clientX; ly = e.clientY; lt = t;
     }
   }, { passive: true });
 
   window.addEventListener("pointerdown", function (e) {
-    Water.drop(e.clientX, e.clientY, 0.45, 42);
+    Water.drop(e.clientX, e.clientY, 0.34, 42);
   }, { passive: true });
 
   /* idle rain — a drop lands on its own every so often */
@@ -846,7 +849,7 @@
     if (Math.random() > 0.55) return;
     var x = Math.random() * window.innerWidth;
     var y = Math.random() * window.innerHeight;
-    Water.drop(x, y, 0.26, 30);
+    Water.drop(x, y, 0.20, 30);
   }, 3400);
 
 })();
