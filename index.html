@@ -606,9 +606,14 @@
       "float band=max(smoothstep(0.26,0.0,k)*0.55,smoothstep(0.70,1.0,k));" +
       "c=mix(c,pond,clamp(max(vig,band),0.0,1.0)*0.88);" +
       /* light rides on top of the darkness so crests read everywhere */
-      "float s=(g.x+g.y)*4.0;" +
-      "c+=vec3(0.86,0.74,0.48)*max(s,0.0)*0.85;" +
-      "c-=vec3(0.03,0.035,0.028)*max(-s,0.0)*0.90;" +
+      "float s=(g.x+g.y)*3.0;" +
+      "float hi=clamp(s,0.0,1.0),lo=clamp(-s,0.0,1.0);" +
+      /* A slope brightens or darkens what is already there. Adding light on
+         top of near-black water paints visible rings on nothing, which is
+         what reads as fake. */
+      "c*=1.0+hi*0.58-lo*0.44;" +
+      /* only the steepest crests catch an actual sheen */
+      "c+=vec3(0.26,0.24,0.19)*hi*hi*0.15;" +
       "gl_FragColor=vec4(c,1.0);}";
 
     function fail(why) {
@@ -683,7 +688,7 @@
       gl.uniform2f(u.texel, 1 / RW, 1 / RH);
       gl.uniform2f(u.ripScale, IW / RW, IH / RH);
       gl.uniform2f(u.ripOffset, MARGIN / RW, MARGIN / RH);
-      gl.uniform1f(u.str, 0.55);
+      gl.uniform1f(u.str, 0.44);
 
       ok = true;
       resize();
@@ -728,6 +733,11 @@
       var gx = Math.round(MARGIN + (cx / window.innerWidth) * IW);
       var gy = Math.round(MARGIN + (1 - cy / window.innerHeight) * IH);
       var rad = Math.max(2, Math.round((radPx || 24) / CELLPX));
+      /* A phone has far smaller cells, so the same pixel radius covers many
+         more of them and injects far more energy. Normalise against a
+         reference radius so a tap feels identical on any screen. */
+      var norm = 22.0 / (rad * rad);
+      force *= norm > 1 ? 1 : norm;
       for (var y = -rad; y <= rad; y++) {
         for (var x = -rad; x <= rad; x++) {
           var px = gx + x, py = gy + y;
