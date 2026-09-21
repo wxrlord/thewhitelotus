@@ -18,6 +18,12 @@
 <meta property="og:image" content="hero.jpg">
 <meta property="og:type" content="website">
 
+<!-- ============================================================
+     ANALYTICS — Umami. Dashboard at cloud.umami.is
+     ============================================================ -->
+<script defer src="https://cloud.umami.is/script.js"
+        data-website-id="b1d8a22e-8aaf-4c8d-9287-c24b7f698a56"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
@@ -215,7 +221,12 @@
     opacity:0;
     transition:opacity .6s ease .6s, background .25s ease;
   }
-  #intro.playing #introsnd{ opacity:1; }
+  #intro.playing #introsnd{ opacity:1; animation:pulse 2.4s ease-in-out .8s infinite; }
+  #intro.heard #introsnd{ animation:none; }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(198,160,83,0); }
+    50%    { box-shadow:0 0 0 7px rgba(198,160,83,.13); }
+  }
   #introsnd svg{ width:17px; height:17px; flex:none; }
   #introsnd svg path, #introsnd svg line{
     fill:none; stroke:var(--gold); stroke-width:1.6; stroke-linecap:round;
@@ -230,7 +241,10 @@
   body.intro-open{ overflow:hidden; }
 
   @media (max-width:520px){
-    #introsnd{ left:14px; bottom:14px; padding:9px 15px 9px 12px; font-size:12px; }
+    #introsnd{
+      left:50%; transform:translateX(-50%);
+      bottom:22px; padding:13px 22px 13px 18px; font-size:12px;
+    }
     #skip{ right:14px; bottom:14px; padding:9px 16px; font-size:12px; }
   }
 
@@ -339,6 +353,7 @@
   footer a:hover{ border-bottom-color:var(--gold); }
 
   @media (prefers-reduced-motion: reduce){
+    #intro.playing #introsnd{ animation:none; }
     .mark,.wordmark .the,.wordmark .name,.tagline{ animation:none; opacity:1; transform:none; }
     .cta{ transition:none; }
   }
@@ -415,7 +430,7 @@
     </article>
 
     <div class="entry">
-      <a class="cta" id="join" href="#">Enter the group</a>
+      <a class="cta" id="join" href="#" data-umami-event="enter-group">Enter the group</a>
       <p class="fineprint">No introductions required.</p>
     </div>
 
@@ -423,7 +438,7 @@
 </section>
 
 <footer>
-  Kept by <a href="https://x.com/angelofwxr" target="_blank" rel="noopener">@angelofwxr</a> · Sources named. Claims separated from speculation.
+  Kept by <a href="https://x.com/angelofwxr" target="_blank" rel="noopener" data-umami-event="x-profile">@angelofwxr</a> · Sources named. Claims separated from speculation.
 </footer>
 
 <script>
@@ -434,6 +449,26 @@
   var TELEGRAM_URL = "https://web.tribute.tg/s/Kzs";
 
   document.getElementById("join").href = TELEGRAM_URL;
+</script>
+
+<script>
+/* analytics helper — silently does nothing if the tracker is blocked */
+window.wlTrack = function (name, data) {
+  try { if (window.umami && window.umami.track) window.umami.track(name, data); } catch (e) {}
+};
+
+/* how far down the page people actually read */
+(function () {
+  var hit = {};
+  window.addEventListener("scroll", function () {
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    if (h <= 0) return;
+    var p = (window.scrollY || 0) / h;
+    [50, 90].forEach(function (m) {
+      if (!hit[m] && p >= m / 100) { hit[m] = 1; window.wlTrack("scroll-" + m); }
+    });
+  }, { passive: true });
+})();
 </script>
 
 <script>
@@ -475,31 +510,48 @@
   vid.src = "intro.mp4";
 
   vid.addEventListener("playing", function () { el.classList.add("playing"); });
-  vid.addEventListener("ended", dismiss);
+  vid.addEventListener("ended", function () { window.wlTrack("intro-finished"); dismiss(); });
   vid.addEventListener("error", dismiss);
 
   function setBtn() {
     snd.setAttribute("aria-pressed", vid.muted ? "false" : "true");
-    snd.lastElementChild.textContent = vid.muted ? "Sound" : "Mute";
+    snd.lastElementChild.textContent = vid.muted ? "Tap for sound" : "Mute";
+  }
+
+  function unmute() {
+    vid.muted = false;
+    vid.volume = 0.85;
+    /* if they turned it on almost immediately, let them hear it from the top */
+    if (vid.currentTime < 3) { try { vid.currentTime = 0; } catch (e) {} }
+    vid.play();
+    if (!el.classList.contains("heard")) window.wlTrack("intro-sound-on");
+    el.classList.add("heard");
+    setBtn();
   }
 
   snd.addEventListener("click", function (e) {
     e.stopPropagation();
-    vid.muted = !vid.muted;
-    if (!vid.muted) { vid.volume = 0.85; vid.play(); }
-    setBtn();
+    if (vid.muted) unmute();
+    else { vid.muted = true; setBtn(); }
   });
 
   skip.addEventListener("click", function (e) {
     e.stopPropagation();
+    window.wlTrack("intro-skipped", { at: Math.round(vid.currentTime || 0) });
     dismiss();
   });
 
+  /* Mobile will not autoplay with audio under any circumstances, so the
+     visitor has to make one gesture. Rather than hunting for a button,
+     the first tap anywhere turns the sound on — a later tap dismisses. */
   setTimeout(function () {
     el.addEventListener("click", function (e) {
-      if (!e.target.closest("#skip") && !e.target.closest("#introsnd")) dismiss();
+      if (e.target.closest("#skip") || e.target.closest("#introsnd")) return;
+      if (vid.muted) { unmute(); return; }
+      window.wlTrack("intro-skipped", { at: Math.round(vid.currentTime || 0) });
+      dismiss();
     });
-  }, 1400);
+  }, 700);
 
   /* Browsers only allow sound before a gesture if this visitor has built up
      enough media-engagement history on the site — so try it, and quietly
@@ -513,7 +565,7 @@
       vid.setAttribute("muted", "");
       setBtn();
       var q = vid.play();
-      if (q && q.catch) q.catch(dismiss);
+      if (q && q.catch) q.catch(function () { window.wlTrack("intro-blocked"); dismiss(); });
     });
   }
   setBtn();
